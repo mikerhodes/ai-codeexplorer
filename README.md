@@ -33,7 +33,7 @@ An interactive tool that allows AI models to explore, understand, and interact w
 
 2. Run using `uv`:
    ```
-   uv run src/codeexplorer/codeexplorer.py
+   uv run codeexplorer
    ```
   This will download the dependencies to a local virtual environment.
 

@@ -16,7 +16,7 @@ dependencies = [
 package = true
 
 [project.scripts]
-# rapport = "rapport.main:run_with_runpy"
+codeexplorer = "codeexplorer.codeexplorer:main"
 
 [tool.pyright]
 venvPath = "."
