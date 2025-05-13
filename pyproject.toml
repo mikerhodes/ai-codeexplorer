@@ -11,3 +11,17 @@ dependencies = [
     "openai>=1.78.1",
     "rich>=14.0.0",
 ]
+
+[tool.uv]
+package = true
+
+[project.scripts]
+# rapport = "rapport.main:run_with_runpy"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion="3.12"
+
+[tool.ruff]
+line-length = 77
