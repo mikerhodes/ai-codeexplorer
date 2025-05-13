@@ -96,3 +96,6 @@ path                  Path to explore (default: current directory)
 
 When edits are allowed (with the `--allow-edits` flag), the AI can make changes to files or create new ones, but only if the working directory is under git version control and clean before the model starts to edit.
 
+---
+
+Built with :heart: by [Mike Rhodes](https://dx13.co.uk/)
