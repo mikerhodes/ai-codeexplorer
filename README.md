@@ -23,7 +23,31 @@ An interactive tool that allows AI models to explore, understand, and interact w
   - Git working directory check to ensure changes are tracked
   - Path validation to prevent escaping from specified directories
 
-## Installation
+## Running `codeexplorer`
+
+There are a few ways to try out `codeexplorer`.
+
+### Requirements
+
+- Python 3.12 or newer
+- API keys for the AI provider you want to use:
+  - Set `ANTHROPIC_API_KEY` environment variable for Anthropic Claude.
+  - Set `WATSONX_IAM_API_KEY`, `WATSONX_PROJECT`, and `WATSONX_URL` for IBM WatsonX.
+  - Ollama requires a running local server on the default port.
+
+### Quick run using `uv`
+
+`codeexplorer` can be run direct from the GitHub repository using:
+
+```
+uv run --with git+https://github.com/mikerhodes/ai-codeexplorer codeexplorer \
+    -p anthropic \
+    -t "how does the README for this project look" .
+```
+
+### Clone and run
+
+To develop the code locally, you can clone the code and run it:
 
 1. Clone this repository:
    ```
@@ -37,13 +61,6 @@ An interactive tool that allows AI models to explore, understand, and interact w
    ```
   This will download the dependencies to a local virtual environment.
 
-## Requirements
-
-- Python 3.12 or newer
-- API keys for the AI provider you want to use:
-  - Set `ANTHROPIC_API_KEY` environment variable for Anthropic Claude.
-  - Set `WATSONX_IAM_API_KEY`, `WATSONX_PROJECT`, and `WATSONX_URL` for IBM WatsonX.
-  - Ollama requires a running local server on the default port.
 
 ## Usage
 
