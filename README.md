@@ -2,6 +2,8 @@
 
 An interactive tool that allows AI models to explore, understand, and interact with codebases. 
 
+![](./images/codeexplorer.png)
+
 ## Features
 
 - **Multi-Provider Support**: Works with multiple AI providers:
