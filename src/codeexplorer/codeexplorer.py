@@ -338,7 +338,7 @@ def is_git_working_copy_clean(directory: Path) -> bool:
 
 def read_file_path(jail: Path, path: str) -> str:
     p = Path(path).absolute()
-    if jail not in p.parents:
+    if p != jail and jail not in p.parents:
         return f"ERROR: Path {p} must have {jail} as an ancestor"
     if not p.exists():
         return f"ERROR: Path {path} does not exist"
@@ -353,13 +353,13 @@ def list_directory_simple(jail: Path, path: str) -> str:
     Return a list of files in the directory and subdirectories as a
     list of absolute file paths, one path per line.
     """
-    root = Path(path).absolute()
-    if root != jail and jail not in root.parents:
+    p = Path(path).absolute()
+    if p != jail and jail not in p.parents:
         return f"ERROR: Path {path} must have {jail} as an ancestor"
-    if not root.exists():
-        return f"ERROR: Path {root} does not exist"
-    if not root.is_dir():
-        return f"ERROR: Path {root} is not a directory"
+    if not p.exists():
+        return f"ERROR: Path {p} does not exist"
+    if not p.is_dir():
+        return f"ERROR: Path {p} is not a directory"
 
     result = []
 
@@ -375,7 +375,7 @@ def list_directory_simple(jail: Path, path: str) -> str:
             if path.is_dir():
                 _tree(path)
 
-    _tree(root)
+    _tree(p)
     result = sorted(result)
     return "\n".join(result)
 
