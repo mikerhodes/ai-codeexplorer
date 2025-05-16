@@ -14,6 +14,7 @@ import os
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, Tuple, cast
+import textwrap
 
 import anthropic
 import ollama
@@ -651,7 +652,7 @@ def main():
     else:
         user_task = args.task
 
-    prompt = f"""
+    prompt = textwrap.dedent(f"""
     You are a programmer's assistant exploring a codebase and carrying out programming tasks.
 
     You are given access to a git repository and tools to explore list and read files. Use these tools when carrying out the user's task.
@@ -675,12 +676,13 @@ def main():
     Here's the user's task:
 
     {user_task}
-    """
+    """)
 
     console.print(Panel(Markdown(prompt), title="Prompt"))
 
     # dedented markdown to use when formatting each tool use message
-    tool_use_markdown = """
+
+    tool_use_markdown = textwrap.dedent("""
     {text}
 
     Tool Used: `{tool_name}`
@@ -694,7 +696,7 @@ def main():
     ```
     {tool_result}
     ```
-    """
+    """)
 
     client: OllamaAdapter | AnthropicAdapter | WatsonxAdapter
     try:
