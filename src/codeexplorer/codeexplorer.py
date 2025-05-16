@@ -15,6 +15,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, Tuple, cast
 import textwrap
+import signal
 
 import anthropic
 import ollama
@@ -25,6 +26,14 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
+
+
+def signal_handler(sig, frame):
+    print("Interrupted; exiting.")
+    exit(0)
+
+
+signal.signal(signal.SIGINT, signal_handler)
 
 
 logging.basicConfig(level=logging.WARNING)
