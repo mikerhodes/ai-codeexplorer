@@ -40,9 +40,13 @@ There are a few ways to try out `codeexplorer`.
 `codeexplorer` can be run direct from the GitHub repository using:
 
 ```
-uv run --with git+https://github.com/mikerhodes/ai-codeexplorer codeexplorer \
+uv run --no-project \
+    --with git+https://github.com/mikerhodes/ai-codeexplorer \
+    codeexplorer \
     -p anthropic \
-    -t "how does the README for this project look" .
+    --allow-edits \
+    -t "Please update the README for this project" \
+    .
 ```
 
 ### Clone and run
