@@ -21,7 +21,6 @@ import anthropic
 import ollama
 import ibm_watsonx_ai as wai
 import ibm_watsonx_ai.foundation_models as waifm
-from ibm_watsonx_ai.wml_client_error import WMLClientError
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -42,7 +41,8 @@ logger = logging.getLogger(__name__)
 
 
 class OllamaAdapter:
-    def __init__(self):
+    def __init__(self, model: str):
+        self.model = model if model else "qwen3:8b"
         self.ollama_client = ollama.Client()
 
     def prepare_messages(self, prompt: str, chat_history):
@@ -51,7 +51,7 @@ class OllamaAdapter:
         ] + chat_history
         return messages
 
-    def chat(self, **kwargs):
+    def chat(self, messages, tools):
         # message = ollama_client.chat(
         #     model=chat_model,
         #     messages=messages,
@@ -60,12 +60,13 @@ class OllamaAdapter:
         #         num_ctx=16384,
         #     ),
         # )
-        kwargs["model"] = kwargs["model"] or "qwen3:8b"
         chat_response = self.ollama_client.chat(
+            model=self.model,
             options=ollama.Options(
                 num_ctx=16384,
             ),
-            **kwargs,
+            messages=messages,
+            tools=tools,
         )
         logger.debug("\nResponse:")
         logger.debug(f"Stop Reason: {chat_response['done_reason']}")
@@ -105,7 +106,8 @@ class OllamaAdapter:
 
 
 class AnthropicAdapter:
-    def __init__(self):
+    def __init__(self, model: str):
+        self.model = model if model else "claude-3-7-sonnet-latest"
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             logger.error("Set ANTHROPIC_API_KEY")
@@ -129,16 +131,15 @@ class AnthropicAdapter:
         )
         return messages
 
-    def chat(self, **kwargs):
+    def chat(self, messages, tools):
         # message = self.client.messages.create(
         #     model=chat_model,
         #     max_tokens=8192,
         #     messages=cast(Iterable[MessageParam], messages),
         #     tools=cast(Iterable[ToolUnionParam], tools),
         # )
-        kwargs["model"] = kwargs["model"] or "claude-3-7-sonnet-latest"
         chat_response = self.client.messages.create(
-            max_tokens=8192, **kwargs
+            model=self.model, max_tokens=8192, messages=messages, tools=tools
         )
         logger.debug("\nResponse:")
         logger.debug(f"Stop Reason: {chat_response.stop_reason}")
@@ -213,8 +214,8 @@ class AnthropicAdapter:
 
 
 class WatsonxAdapter:
-    def __init__(self):
-        self.ollama_client = ollama.Client()
+    def __init__(self, model: str):
+        self.model = model if model else "meta-llama/llama-3-3-70b-instruct"
         if v := os.environ.get("WATSONX_IAM_API_KEY"):
             wxapikey = v
         else:
@@ -237,7 +238,17 @@ class WatsonxAdapter:
             url=wxendpoint,
             api_key=wxapikey,
         )
-        self.wxclient = wai.APIClient(credentials)
+        self.wxmodel = waifm.ModelInference(
+            model_id=self.model,
+            api_client=wai.APIClient(credentials),
+            project_id=self.wxproject_id,
+            space_id=None,
+            verify=True,
+            params={
+                "time_limit": 30000,
+                "max_tokens": 8192,
+            },
+        )
 
     def prepare_messages(self, prompt: str, chat_history):
         messages = [
@@ -245,25 +256,10 @@ class WatsonxAdapter:
         ] + chat_history
         return messages
 
-    def chat(self, **kwargs):
-        kwargs["model"] = (
-            kwargs["model"] or "meta-llama/llama-3-3-70b-instruct"
-        )
-        params = {
-            "time_limit": 30000,
-            "max_tokens": 8192,
-        }
-        wxmodel = waifm.ModelInference(
-            model_id=kwargs["model"],
-            api_client=self.wxclient,
-            params=params,
-            project_id=self.wxproject_id,
-            space_id=None,
-            verify=True,
-        )
-        chat_response = wxmodel.chat(
-            messages=kwargs["messages"],
-            tools=kwargs["tools"],
+    def chat(self, messages, tools):
+        chat_response = self.wxmodel.chat(
+            messages=messages,
+            tools=tools,
         )
         # logger.debug("\nResponse:")
         # logger.debug(f"Stop Reason: {chat_response['done_reason']}")
@@ -710,11 +706,11 @@ def main():
     client: OllamaAdapter | AnthropicAdapter | WatsonxAdapter
     try:
         if args.provider == "ollama":
-            client = OllamaAdapter()
+            client = OllamaAdapter(chat_model)
         elif args.provider == "anthropic":
-            client = AnthropicAdapter()
+            client = AnthropicAdapter(chat_model)
         elif args.provider == "watsonx":
-            client = WatsonxAdapter()
+            client = WatsonxAdapter(chat_model)
         else:
             raise ValueError("Invalid model provider")
     except Exception:
@@ -733,7 +729,6 @@ def main():
         with console.status("Model is working..."):
             logger.debug("Messaging model")
             chat_response = client.chat(
-                model=chat_model,
                 messages=messages,
                 tools=client.tools_for_model(openai_tools),
             )
