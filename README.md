@@ -1,6 +1,6 @@
 # An AI tool: `codeexplorer`
 
-An interactive tool that allows AI models to explore, understand, and interact with codebases. 
+An interactive tool that allows AI models to explore, understand, and interact with codebases.
 
 ![](./images/codeexplorer.png)
 
@@ -10,7 +10,7 @@ An interactive tool that allows AI models to explore, understand, and interact w
   - [Anthropic Claude](https://www.anthropic.com/) models
   - [IBM WatsonX](https://www.ibm.com/watson) models
   - [Ollama](https://ollama.com/) for local LLM execution
-  
+
 - **AI tools provided for code exploration**:
   - List directory contents and navigate through files
   - Read file contents to understand code
@@ -40,7 +40,7 @@ There are a few ways to try out `codeexplorer`.
 `codeexplorer` can be run direct from the GitHub repository using:
 
 ```
-uv run --no-project \
+uv run --isolated \
     --with git+https://github.com/mikerhodes/ai-codeexplorer \
     codeexplorer \
     -p anthropic \
@@ -116,6 +116,10 @@ path                  Path to explore (default: current directory)
 `codeexplorer` implements a simple agent that allows language models to explore a codebase using tools. The AI can navigate through files, read content, and understand the codebase incrementally, just like a human developer. Frankly this code is really simple, because the models are so smart!
 
 When edits are allowed (with the `--allow-edits` flag), the AI can make changes to files or create new ones, but only if the working directory is under git version control and clean before the model starts to edit.
+
+## Contributing
+
+See [DEVELOPING.md](./DEVELOPING.md) for more details on contributing.
 
 ---
 
