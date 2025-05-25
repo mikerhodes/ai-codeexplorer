@@ -139,7 +139,11 @@ class AnthropicAdapter:
         #     tools=cast(Iterable[ToolUnionParam], tools),
         # )
         chat_response = self.client.messages.create(
-            model=self.model, max_tokens=8192, messages=messages, tools=tools
+            model=self.model,
+            max_tokens=8192,
+            messages=messages,
+            tools=tools,
+            thinking={"type": "enabled", "budget_tokens": 4096},
         )
         logger.debug("\nResponse:")
         logger.debug(f"Stop Reason: {chat_response.stop_reason}")
