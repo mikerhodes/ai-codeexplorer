@@ -107,7 +107,7 @@ class OllamaAdapter:
 
 class AnthropicAdapter:
     def __init__(self, model: str):
-        self.model = model if model else "claude-3-7-sonnet-latest"
+        self.model = model if model else "claude-sonnet-4-20250514"
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             logger.error("Set ANTHROPIC_API_KEY")
