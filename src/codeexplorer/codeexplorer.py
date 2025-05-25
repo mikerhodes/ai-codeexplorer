@@ -11,16 +11,17 @@ import copy
 import json
 import logging
 import os
+import signal
 import subprocess
+import textwrap
+import time
 from pathlib import Path
 from typing import Any, Dict, Tuple, cast
-import textwrap
-import signal
 
 import anthropic
-import ollama
 import ibm_watsonx_ai as wai
 import ibm_watsonx_ai.foundation_models as waifm
+import ollama
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -132,19 +133,29 @@ class AnthropicAdapter:
         return messages
 
     def chat(self, messages, tools):
-        # message = self.client.messages.create(
-        #     model=chat_model,
-        #     max_tokens=8192,
-        #     messages=cast(Iterable[MessageParam], messages),
-        #     tools=cast(Iterable[ToolUnionParam], tools),
-        # )
-        chat_response = self.client.messages.create(
-            model=self.model,
-            max_tokens=8192,
-            messages=messages,
-            tools=tools,
-            thinking={"type": "enabled", "budget_tokens": 4096},
-        )
+        retries = 5
+        chat_response = None
+        while retries:
+            retries -= 1
+            try:
+                chat_response = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=8192,
+                    messages=messages,
+                    tools=tools,
+                    thinking={"type": "enabled", "budget_tokens": 4096},
+                )
+            except anthropic.RateLimitError as ex:
+                if retries:
+                    logger.warning(
+                        "Rate limit error; retry in 65s: %s", ex.message
+                    )
+                    time.sleep(65)
+                else:
+                    logger.error("Too many 429s, giving up: %s", ex.message)
+        if not chat_response:
+            return None
+
         logger.debug("\nResponse:")
         logger.debug(f"Stop Reason: {chat_response.stop_reason}")
         logger.debug(f"Content: {chat_response.content}")
