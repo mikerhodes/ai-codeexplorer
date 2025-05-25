@@ -672,8 +672,13 @@ def main():
     else:
         user_task = args.task
 
+    # Prompt notes
+    # Hard-coding paragraph comes from Sonnet 4 system card.
+    # (via https://simonwillison.net/2025/May/25/claude-4-system-card/)
     prompt = textwrap.dedent(f"""
     You are a programmer's assistant exploring a codebase and carrying out programming tasks.
+
+    Please write a high quality, general purpose solution. If the task is unreasonable or infeasible, or if any of the tests are incorrect, please tell me. Do not hard code any test cases. Please tell me if the problem is unreasonable instead of hard coding test cases!
 
     You are given access to a git repository and tools to explore list and read files. Use these tools when carrying out the user's task.
 
