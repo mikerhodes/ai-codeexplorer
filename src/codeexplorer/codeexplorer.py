@@ -315,6 +315,12 @@ def main():
         help="Number of turns (default: 20)",
     )
     parser.add_argument(
+        "-c",
+        "--chat",
+        action="store_true",
+        help="Use chat mode to continue chat with model (default: false)",
+    )
+    parser.add_argument(
         "-p",
         "--provider",
         type=str,
@@ -459,64 +465,91 @@ def main():
     chat_history = []
     num_turns = 0
 
-    for _ in range(0, max_turns):
-        num_turns += 1
-        logger.debug(f"\n{'=' * 50}")
+    f = None
+    if args.output:
+        f = open(Path(args.output).absolute(), "w", encoding="utf-8")
 
-        messages = client.prepare_messages(prompt, chat_history)
+    if args.output and f is None:
+        logger.error("Could not open output file; exiting.")
+        exit(1)
 
-        with console.status("Model is working..."):
-            logger.debug("Messaging model")
-            chat_response = client.chat(
-                messages=messages,
-                tools=client.tools_for_model(openai_tools),
-            )
+    while True:
+        # The "agent loop" --- loop until the model stops
+        # requesting tools
+        for _ in range(0, max_turns):
+            num_turns += 1
+            logger.debug(f"\n{'=' * 50}")
 
-        logger.debug(f"Length of chat_history: {len(chat_history)}")
+            messages = client.prepare_messages(prompt, chat_history)
 
-        if client.has_tool_use(chat_response):
-            response_text = client.get_response_text(chat_response)
-            tool_name, tool_input, tool_use_id = client.get_tool_use(
-                chat_response
-            )
-            tool_result = process_tool_call(jail, tool_name, tool_input)
-
-            md = Markdown(
-                tool_use_markdown.format(
-                    text=response_text,
-                    tool_name=tool_name,
-                    tool_input=json.dumps(tool_input, indent=2),
-                    tool_result="\n".join(
-                        tool_result.split("\n")[:5] + ["..."]
-                    ),
+            with console.status("Model is working..."):
+                logger.debug("Messaging model")
+                chat_response = client.chat(
+                    messages=messages,
+                    tools=client.tools_for_model(openai_tools),
                 )
-            )
-            console.print(Panel(md, title="Turn"))
 
-            chat_history.append(
-                client.format_assistant_history_message(chat_response)
-            )
-            chat_history.append(
-                client.format_tool_result_message(
-                    tool_name, tool_use_id, tool_result
+            logger.debug(f"Length of chat_history: {len(chat_history)}")
+
+            if client.has_tool_use(chat_response):
+                response_text = client.get_response_text(chat_response)
+                tool_name, tool_input, tool_use_id = client.get_tool_use(
+                    chat_response
                 )
+                tool_result = process_tool_call(jail, tool_name, tool_input)
+
+                md = Markdown(
+                    tool_use_markdown.format(
+                        text=response_text,
+                        tool_name=tool_name,
+                        tool_input=json.dumps(tool_input, indent=2),
+                        tool_result="\n".join(
+                            tool_result.split("\n")[:5] + ["..."]
+                        ),
+                    )
+                )
+                console.print(Panel(md, title="Turn"))
+
+                chat_history.append(
+                    client.format_assistant_history_message(chat_response)
+                )
+                chat_history.append(
+                    client.format_tool_result_message(
+                        tool_name, tool_use_id, tool_result
+                    )
+                )
+            else:
+                chat_history.append(
+                    client.format_assistant_history_message(chat_response)
+                )
+                message_text = (
+                    client.get_response_text(chat_response)
+                    .replace("<think>", "`<think>`")
+                    .replace("</think>", "`</think>`")
+                )
+                md = Markdown(message_text)
+                console.print(Panel(md, title="Code exploration result"))
+                if args.output and f:
+                    f.write("**Assistant**:\n\n" + message_text)
+                break
+
+        # if we're not in chat mode, bail out after first
+        # tool use loop.
+        if not args.chat:
+            break
+
+        # Now the model has finished and is ready for more requests.
+        new_prompt = Prompt.ask(
+            "Further requests? (leave blank to quit)",
+            console=console,
+        )
+        if new_prompt:
+            if args.output and f:
+                f.write("**User**:\n\n" + prompt)
+            chat_history.append(
+                client.format_user_history_message(new_prompt)
             )
         else:
-            chat_history.append(
-                client.format_assistant_history_message(chat_response)
-            )
-            message_text = (
-                client.get_response_text(chat_response)
-                .replace("<think>", "`<think>`")
-                .replace("</think>", "`</think>`")
-            )
-            md = Markdown(message_text)
-            console.print(Panel(md, title="Code exploration result"))
-            if args.output:
-                with open(
-                    Path(args.output).absolute(), "w", encoding="utf-8"
-                ) as f:
-                    f.write(message_text)
             break
 
     logger.info("Config: max turns: %d, path: %s", max_turns, jail)

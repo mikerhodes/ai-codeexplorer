@@ -69,6 +69,9 @@ class OllamaAdapter:
             "content": chat_response.message.content,
         }
 
+    def format_user_history_message(self, prompt: str):
+        return {"role": "user", "content": prompt}
+
     def format_tool_result_message(
         self, tool_name: str, tool_use_id: str, tool_result: str
     ) -> Dict:
@@ -186,6 +189,12 @@ class AnthropicAdapter:
     def format_assistant_history_message(self, message):
         return {"role": "assistant", "content": message.content}
 
+    def format_user_history_message(self, prompt: str):
+        return {
+            "role": "user",
+            "content": [{"type": "text", "text": prompt}],
+        }
+
     def format_tool_result_message(
         self, tool_name: str, tool_use_id: str, tool_result: str
     ) -> Any:
@@ -283,6 +292,9 @@ class WatsonxAdapter:
             "role": "assistant",
             "content": self.get_response_text(chat_response),
         }
+
+    def format_user_history_message(self, prompt: str):
+        return {"role": "user", "content": prompt}
 
     def format_tool_result_message(
         self, tool_name: str, tool_use_id: str, tool_result: str
