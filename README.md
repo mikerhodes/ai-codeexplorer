@@ -76,26 +76,26 @@ Basic usage:
 
 ```bash
 # Explore the current directory with Ollama
-uv run src/codeexplorer/codeexplorer.py -p ollama .
+uv run codeexplorer.py -p ollama .
 
 # Explore the current directory with Ollama and
 # continue chatting with the model
-uv run src/codeexplorer/codeexplorer.py -c -p ollama .
+uv run codeexplorer.py -c -p ollama .
 
 # Use Anthropic models to explore a specific project
-uv run src/codeexplorer/codeexplorer.py -p anthropic -m claude-3-7-sonnet-latest ~/projects/myapp
+uv run codeexplorer.py -p anthropic -m claude-3-7-sonnet-latest ~/projects/myapp
 
 # Allow the AI to make changes (only on clean git repositories)
-uv run src/codeexplorer/codeexplorer.py -p ollama --allow-edits [path]
+uv run codeexplorer.py -p ollama --allow-edits [path]
 
 # Specify a task
-uv run src/codeexplorer/codeexplorer.py -p ollama -t "Explain how the authentication system works" [path]
+uv run codeexplorer.py -p ollama -t "Explain how the authentication system works" [path]
 
 # Limit the conversation to fewer turns
-uv run src/codeexplorer/codeexplorer.py -p ollama -n 10 [path]
+uv run codeexplorer.py -p ollama -n 10 [path]
 
 # Save the AI's final output to a file
-uv run src/codeexplorer/codeexplorer.py -p anthropic -o results.md [path]
+uv run codeexplorer.py -p anthropic -o results.md [path]
 ```
 
 ### Command-line arguments
