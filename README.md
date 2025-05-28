@@ -2,6 +2,8 @@
 
 An interactive tool that allows AI models to explore, understand, and interact with codebases.
 
+It's not the most sophisticated tool ever written, but it doesn't have to be, because new AI models are pretty smart instead. Provide them just a few tools, and they can do the rest. So that's what this application does, as an experiment in how far a simple script can take you.
+
 ![](./images/codeexplorer.png)
 
 ## Features
@@ -40,12 +42,14 @@ There are a few ways to try out `codeexplorer`.
 `codeexplorer` can be run direct from the GitHub repository using:
 
 ```
-uv run --isolated \
+uv run \
+    --isolated \
     --with git+https://github.com/mikerhodes/ai-codeexplorer \
     codeexplorer \
-    -p anthropic \
+    --provider anthropic \
     --allow-edits \
-    -t "Please update the README for this project" \
+    --chat \
+    --task "Please update the README for this project" \
     .
 ```
 
@@ -74,6 +78,10 @@ Basic usage:
 # Explore the current directory with Ollama
 uv run src/codeexplorer/codeexplorer.py -p ollama .
 
+# Explore the current directory with Ollama and
+# continue chatting with the model
+uv run src/codeexplorer/codeexplorer.py -c -p ollama .
+
 # Use Anthropic models to explore a specific project
 uv run src/codeexplorer/codeexplorer.py -p anthropic -m claude-3-7-sonnet-latest ~/projects/myapp
 
@@ -94,6 +102,7 @@ uv run src/codeexplorer/codeexplorer.py -p anthropic -o results.md [path]
 
 ```
 -n, --num-turns       Number of turns (default: 20)
+-c, --chat            Use chat mode to continue chat with model (default: false)
 -p, --provider        Model provider (ollama, anthropic, watsonx)
 -m, --model           Specific model to use (provider-specific defaults otherwise)
 -e, --allow-edits     Allow model to create and edit files (default: false)
