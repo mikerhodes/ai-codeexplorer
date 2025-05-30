@@ -13,7 +13,7 @@ import signal
 import subprocess
 import textwrap
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -43,6 +43,51 @@ logger = logging.getLogger(__name__)
 #
 # Helpers
 #
+
+
+def is_in_git_repo(directory: Path) -> bool:
+    try:
+        status = subprocess.run(
+            ["git", "-C", str(directory), "status", "--porcelain"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        return status.returncode == 0
+    except Exception as e:
+        print(f"Error checking git status: {e}")
+        return False
+
+
+def git_ls_files(directory: Path) -> List[str]:
+    """
+    Returns a list of files under git's control.
+
+    Generally provides a much better listing of "the source code"
+    when in a git repo.
+    """
+    try:
+        status = subprocess.run(
+            ["git", "-C", str(directory), "ls-files", "-c"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        if status.returncode == 128:
+            # Exit code 128 means "not a git repository" or
+            # non-existent directory
+            return []
+        if status.returncode != 0:
+            return []
+
+        return status.stdout.splitlines()
+
+    except Exception as e:
+        print(f"Error checking git status: {e}")
+        return []
 
 
 def is_git_working_copy_clean(directory: Path) -> bool:
@@ -101,23 +146,27 @@ def list_directory_simple(jail: Path, path: str) -> str:
     if not p.is_dir():
         return f"ERROR: Path {p} is not a directory"
 
-    result = []
+    if is_in_git_repo(p):
+        fs = git_ls_files(p)
+        return "\n".join([str(p / f) for f in fs])
+    else:
+        result = []
 
-    def _tree(dir_path: Path):
-        for path in [x for x in dir_path.iterdir() if x.is_file()]:
-            if path.name.startswith("."):
-                continue
-            result.append(str(path.absolute()))
+        def _tree(dir_path: Path):
+            for path in [x for x in dir_path.iterdir() if x.is_file()]:
+                if path.name.startswith("."):
+                    continue
+                result.append(str(path.absolute()))
 
-        for path in [x for x in dir_path.iterdir() if x.is_dir()]:
-            if path.name.startswith("."):
-                continue
-            if path.is_dir():
-                _tree(path)
+            for path in [x for x in dir_path.iterdir() if x.is_dir()]:
+                if path.name.startswith("."):
+                    continue
+                if path.is_dir():
+                    _tree(path)
 
-    _tree(p)
-    result = sorted(result)
-    return "\n".join(result)
+        _tree(p)
+        result = sorted(result)
+        return "\n".join(result)
 
 
 def str_replace(jail: Path, path: str, old_str: str, new_str: str) -> str:
