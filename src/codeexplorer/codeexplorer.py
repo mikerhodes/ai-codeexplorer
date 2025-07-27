@@ -15,6 +15,7 @@ import textwrap
 from pathlib import Path
 from typing import Dict, List
 
+from rich import box
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -557,7 +558,9 @@ def main():
                         ),
                     )
                 )
-                console.print(Panel(md, title="Turn"))
+                console.print(
+                    Panel(md, title="Tool use - {}".format(tool_name))
+                )
 
                 chat_history.append(
                     client.format_assistant_history_message(chat_response)
@@ -577,7 +580,11 @@ def main():
                     .replace("</think>", "`</think>`")
                 )
                 md = Markdown(message_text)
-                console.print(Panel(md, title="Code exploration result"))
+                console.print(
+                    Panel(
+                        md, title="Code exploration result", box=box.SIMPLE
+                    )
+                )
                 if args.output and f:
                     f.write("**Assistant**:\n\n" + message_text)
                 break
