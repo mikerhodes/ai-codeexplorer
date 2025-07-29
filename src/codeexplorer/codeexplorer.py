@@ -47,7 +47,7 @@ class AIEvent:
     # receiver should print the message
     md: str
     title: str
-    message_type: Literal["tooluse", "message", "prompt"]
+    message_type: Literal["tooluse", "message", "prompt", "thinking"]
 
     # for type=getuserinput, this field should be filled in
     # where the yield is received before handing back
@@ -272,6 +272,11 @@ class AICodeExplorer(App):
         md: str
         title: str
 
+    @dataclass
+    class ThinkingEvent(Message):
+        md: str
+        title: str
+
     class AITurnDoneEvent(Message):
         pass
 
@@ -337,6 +342,12 @@ class AICodeExplorer(App):
                                     ai_event.md, ai_event.title
                                 )
                             )
+                        case "thinking":
+                            self.post_message(
+                                self.ThinkingEvent(
+                                    ai_event.md, ai_event.title
+                                )
+                            )
                         case "prompt":
                             self.post_message(
                                 self.MarkdownEvent(ai_event.md)
@@ -371,6 +382,17 @@ class AICodeExplorer(App):
         await cv.mount(widget)
         self.query_one(VerticalScroll).scroll_end()
 
+    async def on_aicode_explorer_thinking_event(
+        self, message: ThinkingEvent
+    ):
+        """Respond to ThinkingEvent messages"""
+        widget = Collapsible(
+            TextualMarkdown(message.md), title=message.title, collapsed=False
+        )
+        cv = self.query_one("#chat-view")
+        await cv.mount(widget)
+        self.query_one(VerticalScroll).scroll_end()
+
 
 def run_ai_turn(
     prompt: str,
@@ -399,72 +421,63 @@ def run_ai_turn(
 
         logger.debug(f"Length of chat_history: {len(chat_history)}")
 
-        if client.has_tool_use(chat_response):
-            # yield the text block for display
-            response_text = client.get_thinking_text(chat_response)
-            yield AIEvent(
-                type="ai",
-                md=response_text,
-                title="Tool use",
-                message_type="message",
-                user_response="",
-            )
-            # yield the text block for display
-            response_text = client.get_response_text(chat_response)
-            chat_history.append(
-                client.format_assistant_history_message(chat_response)
-            )
-            yield AIEvent(
-                type="ai",
-                md=response_text,
-                title="Tool use",
-                message_type="message",
-                user_response="",
-            )
+        chat_history.append(
+            client.format_assistant_history_message(chat_response)
+        )
 
-            # yield tool use details
-            tool_name, tool_input, tool_use_id = client.get_tool_use(
-                chat_response
-            )
-            tool_result = tools.process_tool_call(
-                jail, tool_name, tool_input
-            )
-            chat_history.append(
-                client.format_tool_result_message(
-                    tool_name, tool_use_id, tool_result
-                )
-            )
-            md = TOOL_USE_MARKDOWN.format(
-                tool_name=tool_name,
-                tool_input=json.dumps(tool_input, indent=2),
-                tool_result="\n".join(tool_result.split("\n")[:5] + ["..."]),
-            )
+        # yield the text block for display
+        response_thinking = client.get_thinking_text(chat_response)
+        if response_thinking:
             yield AIEvent(
                 type="ai",
-                md=md,
-                title="Tool use - {}".format(tool_name),
-                message_type="tooluse",
+                md=response_thinking,
+                title="Thinking",
+                message_type="thinking",
                 user_response="",
             )
-        else:
-            chat_history.append(
-                client.format_assistant_history_message(chat_response)
+        if output_file:
+            output_file.write(
+                "**Assistant (thinking)**:\n\n" + response_thinking
             )
-            message_text = (
-                client.get_response_text(chat_response)
-                .replace("<think>", "`<think>`")
-                .replace("</think>", "`</think>`")
-            )
-            yield AIEvent(
-                type="ai",
-                md=message_text,
-                title="Code exploration result",
-                message_type="message",
-                user_response="",
-            )
-            if output_file:
-                output_file.write("**Assistant**:\n\n" + message_text)
+        # yield the text block for display
+        response_text = client.get_response_text(chat_response)
+        yield AIEvent(
+            type="ai",
+            md=response_text,
+            title="Tool use",
+            message_type="message",
+            user_response="",
+        )
+        if output_file:
+            output_file.write("**Assistant**:\n\n" + response_text)
+
+        # No tool use indicates the end of the "agent loop" and so
+        # the AI's turn.
+        if not client.has_tool_use(chat_response):
             break
+
+        # yield tool use details
+        tool_name, tool_input, tool_use_id = client.get_tool_use(
+            chat_response
+        )
+        tool_result = tools.process_tool_call(jail, tool_name, tool_input)
+        chat_history.append(
+            client.format_tool_result_message(
+                tool_name, tool_use_id, tool_result
+            )
+        )
+        md = TOOL_USE_MARKDOWN.format(
+            tool_name=tool_name,
+            tool_input=json.dumps(tool_input, indent=2),
+            tool_result="\n".join(tool_result.split("\n")[:5] + ["..."]),
+        )
+        yield AIEvent(
+            type="ai",
+            md=md,
+            title="Tool use - {}".format(tool_name),
+            message_type="tooluse",
+            user_response="",
+        )
 
     logger.info("Took %d turns", num_turns)
 
