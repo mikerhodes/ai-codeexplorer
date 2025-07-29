@@ -96,9 +96,14 @@ class AnthropicAdapter:
         cache_prompt = None
         if chat_history:
             cache_prompt = copy.deepcopy(chat_history[-1])
-            cache_prompt["content"][0]["cache_control"] = {
-                "type": "ephemeral"
-            }
+            try:
+                cache_prompt["content"][0]["cache_control"] = {
+                    "type": "ephemeral"
+                }
+            except TypeError:  # A strongly typed TextBlock or similar
+                cache_prompt["content"][0].cache_control = {
+                    "type": "ephemeral"
+                }
         messages = (
             [
                 {"role": "user", "content": prompt},

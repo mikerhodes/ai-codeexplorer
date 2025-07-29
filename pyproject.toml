@@ -10,6 +10,8 @@ dependencies = [
     "ollama>=0.4.8",
     "openai>=1.78.1",
     "rich>=14.0.0",
+    "textual>=5.0.1",
+    "textual-dev>=1.7.0",
 ]
 
 [tool.uv]

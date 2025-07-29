@@ -1,0 +1,25 @@
+Screen {
+    layout: grid;
+    grid-size: 2;
+    grid-rows: 90% 10%;
+	grid-columns: 90% 10%;
+}
+
+#chat-view {
+	column-span: 2;
+}
+
+.box {
+    height: 100%;
+    border: solid green;
+}
+
+#chatbox {
+    height: 7;
+    width: 100%;
+}
+
+.prompt {
+	border: solid green;
+    border-title-align: right;
+}

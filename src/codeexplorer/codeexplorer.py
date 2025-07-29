@@ -14,13 +14,26 @@ import signal
 import subprocess
 import textwrap
 from pathlib import Path
-from typing import Callable, Dict, List, Any, Literal
+from typing import Dict, List, Any, Literal
 
 from rich import box
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
+
+from textual import work, on
+from textual.app import App, ComposeResult
+from textual.containers import VerticalScroll
+from textual.message import Message
+from textual.widgets import (
+    Button,
+    Collapsible,
+    Input,
+    Footer,
+    Header,
+)
+from textual.widgets import Markdown as TextualMarkdown
 
 from codeexplorer.adapters import (
     AnthropicAdapter,
@@ -207,6 +220,159 @@ def main():
     logger.info("Used %s model", chat_model)
 
 
+def run_textual_ux(
+    chat_mode: bool,
+    user_task: str,
+    openai_tools: List[Dict[str, Any]],
+    client: OllamaAdapter | AnthropicAdapter | WatsonxAdapter,
+    output_file,
+    max_turns: int,
+    jail: Path,
+):
+    """Run CodeExplorer's rich-based UX"""
+
+    app = AICodeExplorer(
+        openai_tools=openai_tools,
+        client=client,
+        output_file=output_file,
+        max_turns=max_turns,
+        jail=jail,
+    )
+    app.run()
+
+
+class AICodeExplorer(App):
+    CSS_PATH = "./textual.tcss"
+    chat_history = []
+    first_input = True
+
+    def __init__(
+        self,
+        openai_tools: List[Dict[str, Any]],
+        client: OllamaAdapter | AnthropicAdapter | WatsonxAdapter,
+        output_file,
+        max_turns: int,
+        jail: Path,
+    ):
+        self.openai_tools = openai_tools
+        self.client = client
+        self.output_file = output_file
+        self.max_turns = max_turns
+        self.jail = jail
+        self.prompt = get_prompt("", jail)
+        self.SUB_TITLE = str(jail)
+        super().__init__()
+
+    def on_mount(self) -> None:
+        self.theme = "gruvbox"
+
+    @dataclass
+    class MarkdownEvent(Message):
+        md: str
+
+    @dataclass
+    class ToolUseEvent(Message):
+        md: str
+        title: str
+
+    class AITurnDoneEvent(Message):
+        pass
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with VerticalScroll(id="chat-view"):
+            yield Collapsible(
+                TextualMarkdown(self.prompt),
+                title="System Prompt",
+            )
+        yield Input(
+            placeholder="Enter prompt...",
+            classes="box",
+            id="chatbox",
+        )
+        yield Button("Stop", id="progress")
+        yield Footer()
+
+    @on(Input.Submitted)
+    async def on_input(self, event: Input.Submitted) -> None:
+        user_task = event.value
+        cv = self.query_one("#chat-view")
+        md = TextualMarkdown(user_task, classes="prompt")
+        md.border_title = "User"
+        await cv.mount(md)
+        cv.scroll_end()
+
+        self.chat_history.append(
+            self.client.format_user_history_message(user_task)
+        )
+
+        event.input.loading = True
+        event.input.clear()
+
+        self.send_user_message(self.prompt)
+
+    @work(thread=True)
+    def send_user_message(self, system_prompt: str) -> None:
+        self.log("Chat history length:", len(self.chat_history))
+        try:
+            msgs = run_ai_turn(
+                system_prompt,
+                self.openai_tools,
+                self.client,
+                self.output_file,
+                self.max_turns,
+                self.jail,
+                self.chat_history,
+            )
+            while True:
+                ai_event = next(msgs)
+                if ai_event.type == "ai":
+                    match ai_event.message_type:
+                        case "message":
+                            self.post_message(
+                                self.MarkdownEvent(ai_event.md)
+                            )
+                        case "tooluse":
+                            self.post_message(
+                                self.ToolUseEvent(
+                                    ai_event.md, ai_event.title
+                                )
+                            )
+                        case "prompt":
+                            self.post_message(
+                                self.MarkdownEvent(ai_event.md)
+                            )
+
+        except StopIteration:
+            self.log("StopIteration")
+            pass
+
+        self.post_message(self.AITurnDoneEvent())
+
+    def on_aicode_explorer_aiturn_done_event(self):
+        """Respond to AITurnDoneEvent messages"""
+        self.query_one("#chatbox").loading = False
+
+    async def on_aicode_explorer_markdown_event(
+        self, message: MarkdownEvent
+    ):
+        """Respond to MarkdownEvent messages"""
+        widget = TextualMarkdown(message.md)
+        cv = self.query_one("#chat-view")
+        await cv.mount(widget)
+        self.query_one(VerticalScroll).scroll_end()
+
+    async def on_aicode_explorer_tool_use_event(self, message: ToolUseEvent):
+        """Respond to ToolUseEvent messages"""
+        widget = Collapsible(
+            TextualMarkdown(message.md),
+            title=message.title,
+        )
+        cv = self.query_one("#chat-view")
+        await cv.mount(widget)
+        self.query_one(VerticalScroll).scroll_end()
+
+
 def run_rich_ux(
     chat_mode: bool,
     user_task: str,
@@ -235,7 +401,6 @@ def run_rich_ux(
             output_file,
             max_turns,
             jail,
-            request_user_input,
         )
         while True:
             with console.status("Model is working..."):
@@ -270,7 +435,6 @@ def run_ux_loop(
     output_file,
     max_turns: int,
     jail: Path,
-    request_user_input: Callable[[str], str],
 ):
     # Generate and print initial prompt
     if not user_task:
