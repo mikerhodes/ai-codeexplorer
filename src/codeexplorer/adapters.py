@@ -47,6 +47,9 @@ class OllamaAdapter:
         logger.debug(f"Content: {chat_response['message']}")
         return chat_response
 
+    def get_thinking_text(self, _) -> str:
+        return ""
+
     def get_response_text(self, chat_response) -> str:
         return chat_response.message.content
 
@@ -119,13 +122,26 @@ class AnthropicAdapter:
         while retries:
             retries -= 1
             try:
-                chat_response = self.client.messages.create(
+                with self.client.messages.stream(
                     model=self.model,
                     max_tokens=8192,
                     messages=messages,
                     tools=tools,
                     thinking={"type": "enabled", "budget_tokens": 4096},
-                )
+                ) as stream:
+                    for event in stream:
+                        if event.type == "text":
+                            print(event.text, end="", flush=True)
+                        elif event.type == "content_block_stop":
+                            print(
+                                "\ncontent block finished accumulating:",
+                                event.content_block,
+                            )
+
+                # you can still get the accumulated final message outside of
+                # the context manager, as long as the entire stream was consumed
+                # inside of the context manager
+                chat_response = stream.get_final_message()
                 break
             except anthropic.RateLimitError as ex:
                 if retries:
@@ -173,6 +189,18 @@ class AnthropicAdapter:
 
     def has_tool_use(self, message):
         return message.stop_reason == "tool_use"
+
+    def get_thinking_text(self, message):
+        thinking_block = None
+        try:
+            thinking_block = next(
+                block
+                for block in message.content
+                if block.type == "thinking"
+            )
+        except StopIteration:
+            pass  # sometimes the model has nothing to say
+        return thinking_block.thinking if thinking_block else ""
 
     def get_response_text(self, message) -> str:
         text_block = None
@@ -268,6 +296,9 @@ class WatsonxAdapter:
         # logger.debug(f"Stop Reason: {chat_response['done_reason']}")
         # logger.debug(f"Content: {chat_response['message']}")
         return chat_response
+
+    def get_thinking_text(self, _) -> str:
+        return ""
 
     def get_response_text(self, chat_response) -> str:
         try:

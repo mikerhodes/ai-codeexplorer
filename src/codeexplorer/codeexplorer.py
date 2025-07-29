@@ -7,40 +7,34 @@ from the codebase ourselves.
 """
 
 import argparse
-from dataclasses import dataclass
 import json
 import logging
 import signal
 import subprocess
 import textwrap
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Any, Literal
+from typing import Any, Dict, List, Literal, cast
 
-from rich import box
-from rich.console import Console
-from rich.markdown import Markdown
-from rich.panel import Panel
-from rich.prompt import Prompt
-
-from textual import work, on
+from textual import on, work
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
 from textual.message import Message
 from textual.widgets import (
     Button,
     Collapsible,
-    Input,
     Footer,
     Header,
+    Input,
 )
 from textual.widgets import Markdown as TextualMarkdown
 
+from codeexplorer import tools
 from codeexplorer.adapters import (
     AnthropicAdapter,
     OllamaAdapter,
     WatsonxAdapter,
 )
-from codeexplorer import tools
 
 
 @dataclass
@@ -206,8 +200,7 @@ def main():
         logger.error("Could not open output file; exiting.")
         exit(1)
 
-    run_rich_ux(
-        args.chat,
+    run_textual_ux(
         args.task,
         openai_tools,
         client,
@@ -221,7 +214,6 @@ def main():
 
 
 def run_textual_ux(
-    chat_mode: bool,
     user_task: str,
     openai_tools: List[Dict[str, Any]],
     client: OllamaAdapter | AnthropicAdapter | WatsonxAdapter,
@@ -232,6 +224,7 @@ def run_textual_ux(
     """Run CodeExplorer's rich-based UX"""
 
     app = AICodeExplorer(
+        initial_task=user_task,
         openai_tools=openai_tools,
         client=client,
         output_file=output_file,
@@ -248,12 +241,14 @@ class AICodeExplorer(App):
 
     def __init__(
         self,
+        initial_task: str,
         openai_tools: List[Dict[str, Any]],
         client: OllamaAdapter | AnthropicAdapter | WatsonxAdapter,
         output_file,
         max_turns: int,
         jail: Path,
     ):
+        self.initial_task = initial_task
         self.openai_tools = openai_tools
         self.client = client
         self.output_file = output_file
@@ -263,8 +258,10 @@ class AICodeExplorer(App):
         self.SUB_TITLE = str(jail)
         super().__init__()
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         self.theme = "gruvbox"
+        if self.initial_task:
+            await self.new_user_message(self.initial_task)
 
     @dataclass
     class MarkdownEvent(Message):
@@ -287,6 +284,7 @@ class AICodeExplorer(App):
             )
         yield Input(
             placeholder="Enter prompt...",
+            value=self.initial_task,
             classes="box",
             id="chatbox",
         )
@@ -295,24 +293,25 @@ class AICodeExplorer(App):
 
     @on(Input.Submitted)
     async def on_input(self, event: Input.Submitted) -> None:
-        user_task = event.value
+        await self.new_user_message(event.value)
+
+    async def new_user_message(self, message: str):
+        """Process a new user message"""
         cv = self.query_one("#chat-view")
-        md = TextualMarkdown(user_task, classes="prompt")
+        md = TextualMarkdown(message, classes="prompt")
         md.border_title = "User"
         await cv.mount(md)
         cv.scroll_end()
-
         self.chat_history.append(
-            self.client.format_user_history_message(user_task)
+            self.client.format_user_history_message(message)
         )
-
-        event.input.loading = True
-        event.input.clear()
-
-        self.send_user_message(self.prompt)
+        cb = cast(Input, self.query_one("#chatbox"))
+        cb.loading = True
+        cb.clear()
+        self.process_with_ai(self.prompt)
 
     @work(thread=True)
-    def send_user_message(self, system_prompt: str) -> None:
+    def process_with_ai(self, system_prompt: str) -> None:
         self.log("Chat history length:", len(self.chat_history))
         try:
             msgs = run_ai_turn(
@@ -373,133 +372,6 @@ class AICodeExplorer(App):
         self.query_one(VerticalScroll).scroll_end()
 
 
-def run_rich_ux(
-    chat_mode: bool,
-    user_task: str,
-    openai_tools: List[Dict[str, Any]],
-    client: OllamaAdapter | AnthropicAdapter | WatsonxAdapter,
-    output_file,
-    max_turns: int,
-    jail: Path,
-):
-    """Run CodeExplorer's rich-based UX"""
-    console = Console()
-
-    # Allow the UX loop to request user input
-    def request_user_input(prompt: str) -> str:
-        return Prompt.ask(
-            prompt,
-            console=console,
-        )
-
-    try:
-        msgs = run_ux_loop(
-            chat_mode,
-            user_task,
-            openai_tools,
-            client,
-            output_file,
-            max_turns,
-            jail,
-        )
-        while True:
-            with console.status("Model is working..."):
-                ai_event = next(msgs)
-            if ai_event.type == "ai":
-                match ai_event.message_type:
-                    case "message":
-                        btype = box.SIMPLE
-                    case "tooluse":
-                        btype = box.ROUNDED
-                    case "prompt":
-                        btype = box.ROUNDED
-                console.print(
-                    Panel(
-                        Markdown(ai_event.md),
-                        title=ai_event.title,
-                        box=btype,
-                    )
-                )
-            elif ai_event.type == "getuserinput":
-                ai_event.user_response = request_user_input(ai_event.title)
-
-    except StopIteration:
-        pass
-
-
-def run_ux_loop(
-    chat_mode: bool,
-    user_task: str,
-    openai_tools: List[Dict[str, Any]],
-    client: OllamaAdapter | AnthropicAdapter | WatsonxAdapter,
-    output_file,
-    max_turns: int,
-    jail: Path,
-):
-    # Generate and print initial prompt
-    if not user_task:
-        e = AIEvent(
-            type="getuserinput",
-            message_type="message",
-            title="Anything you'd like AI to think about (eg, plan how to do X)",
-            md="",
-            user_response="",
-        )
-        yield e
-        extras = e.user_response
-        if extras:
-            user_task = extras
-        else:
-            user_task = "Please explain this codebase"
-    prompt = get_prompt(user_task, jail)
-    yield AIEvent(
-        type="ai",
-        md=prompt,
-        title="Prompt",
-        message_type="prompt",
-        user_response="",
-    )
-
-    chat_history = []
-
-    while True:
-        # Run agent loop for this turn
-        for ev in run_ai_turn(
-            prompt,
-            openai_tools,
-            client,
-            output_file,
-            max_turns,
-            jail,
-            chat_history,
-        ):
-            yield ev
-
-        # If we're not in chat mode, bail out after first
-        # tool use loop.
-        if not chat_mode:
-            break
-
-        # Now the model has finished and is ready for more requests.
-        e = AIEvent(
-            type="getuserinput",
-            message_type="message",
-            title="Further requests? (leave blank to quit)",
-            md="",
-            user_response="",
-        )
-        yield e
-        new_user_request = e.user_response
-        if new_user_request:
-            if output_file:
-                output_file.write("**User**:\n\n" + prompt)
-            chat_history.append(
-                client.format_user_history_message(new_user_request)
-            )
-        else:
-            break
-
-
 def run_ai_turn(
     prompt: str,
     openai_tools: List[Dict[str, Any]],
@@ -528,16 +400,41 @@ def run_ai_turn(
         logger.debug(f"Length of chat_history: {len(chat_history)}")
 
         if client.has_tool_use(chat_response):
+            # yield the text block for display
+            response_text = client.get_thinking_text(chat_response)
+            yield AIEvent(
+                type="ai",
+                md=response_text,
+                title="Tool use",
+                message_type="message",
+                user_response="",
+            )
+            # yield the text block for display
             response_text = client.get_response_text(chat_response)
+            chat_history.append(
+                client.format_assistant_history_message(chat_response)
+            )
+            yield AIEvent(
+                type="ai",
+                md=response_text,
+                title="Tool use",
+                message_type="message",
+                user_response="",
+            )
+
+            # yield tool use details
             tool_name, tool_input, tool_use_id = client.get_tool_use(
                 chat_response
             )
             tool_result = tools.process_tool_call(
                 jail, tool_name, tool_input
             )
-
+            chat_history.append(
+                client.format_tool_result_message(
+                    tool_name, tool_use_id, tool_result
+                )
+            )
             md = TOOL_USE_MARKDOWN.format(
-                text=response_text,
                 tool_name=tool_name,
                 tool_input=json.dumps(tool_input, indent=2),
                 tool_result="\n".join(tool_result.split("\n")[:5] + ["..."]),
@@ -548,15 +445,6 @@ def run_ai_turn(
                 title="Tool use - {}".format(tool_name),
                 message_type="tooluse",
                 user_response="",
-            )
-
-            chat_history.append(
-                client.format_assistant_history_message(chat_response)
-            )
-            chat_history.append(
-                client.format_tool_result_message(
-                    tool_name, tool_use_id, tool_result
-                )
             )
         else:
             chat_history.append(
@@ -583,8 +471,6 @@ def run_ai_turn(
 
 # dedented markdown to use when formatting each tool use message
 TOOL_USE_MARKDOWN = textwrap.dedent("""
-{text}
-
 Tool Used: `{tool_name}`
 
 Tool Input:
