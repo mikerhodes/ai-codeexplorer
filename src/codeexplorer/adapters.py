@@ -121,6 +121,7 @@ class AnthropicAdapter:
                     tools=tools,
                     thinking={"type": "enabled", "budget_tokens": 4096},
                 )
+                break
             except anthropic.RateLimitError as ex:
                 if retries:
                     logger.warning(
