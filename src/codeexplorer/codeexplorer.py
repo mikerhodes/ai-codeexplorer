@@ -370,7 +370,8 @@ class AICodeExplorer(App):
         widget = TextualMarkdown(message.md)
         cv = self.query_one("#chat-view")
         await cv.mount(widget)
-        self.query_one(VerticalScroll).scroll_end()
+        # scroll top of message into view, ready for reading
+        cv.scroll_to_widget(widget)
 
     async def on_aicode_explorer_tool_use_event(self, message: ToolUseEvent):
         """Respond to ToolUseEvent messages"""
@@ -380,7 +381,7 @@ class AICodeExplorer(App):
         )
         cv = self.query_one("#chat-view")
         await cv.mount(widget)
-        self.query_one(VerticalScroll).scroll_end()
+        cv.scroll_end()
 
     async def on_aicode_explorer_thinking_event(
         self, message: ThinkingEvent
@@ -391,7 +392,7 @@ class AICodeExplorer(App):
         )
         cv = self.query_one("#chat-view")
         await cv.mount(widget)
-        self.query_one(VerticalScroll).scroll_end()
+        cv.scroll_end()
 
 
 def run_ai_turn(
