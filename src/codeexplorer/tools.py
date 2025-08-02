@@ -1,6 +1,6 @@
 from pathlib import Path
 import subprocess
-from typing import Dict, List
+from typing import Any, Dict, List
 
 #
 # Helpers
@@ -57,7 +57,7 @@ def git_ls_files(directory: Path) -> List[str]:
 #
 
 
-def read_file_path(jail: Path, path: str) -> str:
+def read_file(jail: Path, path: str) -> str:
     p = Path(path).absolute()
     if p != jail and jail not in p.parents:
         return f"ERROR: Path {p} must have {jail} as an ancestor"
@@ -67,6 +67,26 @@ def read_file_path(jail: Path, path: str) -> str:
         return f"ERROR: Path {path} is not a file"
     with open(path, "r") as f:
         return f.read()
+
+
+def read_many_files(jail: Path, paths: List[str]) -> str:
+    """Read many files, returning each headed by --- filepath ---"""
+    header = "--- {} ---"
+    output = []
+    for path in paths:
+        p = Path(path).absolute()
+        if p != jail and jail not in p.parents:
+            return f"ERROR: Path {p} must have {jail} as an ancestor"
+        if not p.exists():
+            return f"ERROR: Path {path} does not exist"
+        if not p.is_file():
+            return f"ERROR: Path {path} is not a file"
+        with open(path, "r") as f:
+            content = f.read()
+            output.append(header.format(p))
+            output.append(content)
+
+    return "\n".join(output)
 
 
 def list_directory_simple(jail: Path, path: str) -> str:
@@ -182,7 +202,7 @@ tools = [
         },
     },
     {
-        "name": "read_file_path",
+        "name": "read_file",
         "description": """
             Read a file.
         """,
@@ -195,6 +215,38 @@ tools = [
                 }
             },
             "required": ["path"],
+        },
+    },
+    {
+        "name": "read_many_files",
+        "description": """
+            Read many files at once.
+
+            The files will be returned in the following format:
+
+            --- file1.txt ---
+            The rain in spain falls
+            mainly on the plain
+            --- file2.css ---
+            body {
+                color: red;
+                background: blue;
+            }
+            --- file3.py ---
+            class Sprocket:
+                def __init__(self):
+                    self.ratchets = 5
+        """,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of absolute file paths",
+                }
+            },
+            "required": ["paths"],
         },
     },
     {
@@ -264,13 +316,15 @@ edit_tools = [
 
 
 def process_tool_call(
-    jail: Path, tool_name: str, tool_input: Dict[str, str]
+    jail: Path, tool_name: str, tool_input: Dict[str, Any]
 ) -> str:
     match tool_name:
         case "list_directory_simple":
             return list_directory_simple(jail, tool_input["path"])
-        case "read_file_path":
-            return read_file_path(jail, tool_input["path"])
+        case "read_file":
+            return read_file(jail, tool_input["path"])
+        case "read_many_files":
+            return read_many_files(jail, tool_input["paths"])
         case "str_replace":
             return str_replace(
                 jail,
