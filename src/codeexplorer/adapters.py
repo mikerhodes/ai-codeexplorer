@@ -124,10 +124,10 @@ class AnthropicAdapter:
             try:
                 with self.client.messages.stream(
                     model=self.model,
-                    max_tokens=8192,
+                    max_tokens=16384,
                     messages=messages,
                     tools=tools,
-                    thinking={"type": "enabled", "budget_tokens": 4096},
+                    thinking={"type": "enabled", "budget_tokens": 8192},
                 ) as stream:
                     for event in stream:
                         if event.type == "text":
