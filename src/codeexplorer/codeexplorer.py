@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Literal, cast
 
 from textual import on, work
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.message import Message
 from textual.widgets import (
@@ -239,6 +240,13 @@ class AICodeExplorer(App):
     chat_history = []
     first_input = True
 
+    BINDINGS = [
+        Binding("ctrl+u", "page_up", "Page Up", priority=True),
+        Binding("ctrl+d", "page_down", "Page Down", priority=True),
+        Binding("up", "scroll_up", "Scroll Up", priority=True),
+        Binding("down", "scroll_down", "Scroll Down", priority=True),
+    ]
+
     def __init__(
         self,
         initial_task: str,
@@ -288,7 +296,7 @@ class AICodeExplorer(App):
                 title="System Prompt",
             )
         yield Input(
-            placeholder="Enter prompt...",
+            placeholder="Enter prompt or /exit to quit...",
             value=self.initial_task,
             classes="box",
             id="chatbox",
@@ -298,7 +306,22 @@ class AICodeExplorer(App):
 
     @on(Input.Submitted)
     async def on_input(self, event: Input.Submitted) -> None:
+        if event.value == "/exit":
+            self.exit(0)
+            return
         await self.new_user_message(event.value)
+
+    def action_scroll_down(self) -> None:
+        self.query_one("#chat-view").scroll_down()
+
+    def action_scroll_up(self) -> None:
+        self.query_one("#chat-view").scroll_up()
+
+    def action_page_up(self) -> None:
+        self.query_one("#chat-view").scroll_page_up()
+
+    def action_page_down(self) -> None:
+        self.query_one("#chat-view").scroll_page_down()
 
     async def new_user_message(self, message: str):
         """Process a new user message"""
@@ -361,7 +384,9 @@ class AICodeExplorer(App):
 
     def on_aicode_explorer_aiturn_done_event(self):
         """Respond to AITurnDoneEvent messages"""
-        self.query_one("#chatbox").loading = False
+        cb = self.query_one("#chatbox")
+        cb.loading = False
+        cb.focus()
 
     async def on_aicode_explorer_markdown_event(
         self, message: MarkdownEvent
