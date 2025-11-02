@@ -13,33 +13,33 @@ It's not the most sophisticated tool ever written, but it doesn't have to be, be
   - [IBM WatsonX](https://www.ibm.com/watson) models
   - [Ollama](https://ollama.com/) for local LLM execution
 
-- **AI tools provided for code exploration**:
-  - List directory contents and navigate through files
-  - Read file contents to understand code
-  - Perform "thinking" to analyze and brainstorm about the code
+- **AI Tools for Code Exploration**:
+  - List directory contents and navigate files
+  - Read file contents to understand code structure
+  - Analyze and brainstorm through structured thinking
   - Edit existing files (with explicit permission)
   - Create new files (with explicit permission)
 
-- **Safety**:
-  - Read-only mode by default (requires explicit flag to enable edits)
-  - Git working directory check to ensure changes are tracked
-  - Path validation to prevent escaping from specified directories
+- **Safety Features**:
+  - Read-only mode by default (requires explicit flag for edits)
+  - Git working directory verification to ensure change tracking
+  - Path validation to prevent directory traversal attacks
 
 ## Running `codeexplorer`
 
-There are a few ways to try out `codeexplorer`.
+`codeexplorer` offers several installation and usage methods.
 
 ### Requirements
 
 - Python 3.12 or newer
-- API keys for the AI provider you want to use:
-  - Set `ANTHROPIC_API_KEY` environment variable for Anthropic Claude.
-  - Set `WATSONX_IAM_API_KEY`, `WATSONX_PROJECT`, and `WATSONX_URL` for IBM WatsonX.
-  - Ollama requires a running local server on the default port.
+- API keys for your chosen AI provider:
+  - Set `ANTHROPIC_API_KEY` environment variable for Anthropic Claude
+  - Set `WATSONX_IAM_API_KEY`, `WATSONX_PROJECT`, and `WATSONX_URL` for IBM WatsonX
+  - Run Ollama local server on the default port
 
 ### Quick run using `uv`
 
-`codeexplorer` can be run direct from the GitHub repository using:
+Run `codeexplorer` directly from the GitHub repository:
 
 ```
 uv run \
@@ -55,7 +55,7 @@ uv run \
 
 ### Clone and run
 
-To develop the code locally, you can clone the code and run it:
+For local development, clone and run the repository:
 
 1. Clone this repository:
    ```
@@ -67,7 +67,7 @@ To develop the code locally, you can clone the code and run it:
    ```
    uv run codeexplorer
    ```
-  This will download the dependencies to a local virtual environment.
+   This downloads dependencies to a local virtual environment.
 
 
 ## Usage
@@ -85,7 +85,7 @@ uv run codeexplorer.py -c -p ollama .
 # Use Anthropic models to explore a specific project
 uv run codeexplorer.py -p anthropic -m claude-3-7-sonnet-latest ~/projects/myapp
 
-# Allow the AI to make changes (only on clean git repositories)
+# Allow AI to make changes (requires clean git repository)
 uv run codeexplorer.py -p ollama --allow-edits [path]
 
 # Specify a task
@@ -94,7 +94,7 @@ uv run codeexplorer.py -p ollama -t "Explain how the authentication system works
 # Limit the conversation to fewer turns
 uv run codeexplorer.py -p ollama -n 10 [path]
 
-# Save the AI's final output to a file
+# Save AI's final output to a file
 uv run codeexplorer.py -p anthropic -o results.md [path]
 ```
 
@@ -102,29 +102,29 @@ uv run codeexplorer.py -p anthropic -o results.md [path]
 
 ```
 -n, --num-turns       Number of turns (default: 20)
--c, --chat            Use chat mode to continue chat with model (default: false)
+-c, --chat            Enable chat mode to continue conversation with model (default: false)
 -p, --provider        Model provider (ollama, anthropic, watsonx)
--m, --model           Specific model to use (provider-specific defaults otherwise)
+-m, --model           Specific model name (uses provider defaults otherwise)
 -e, --allow-edits     Allow model to create and edit files (default: false)
--t, --task            Task to complete using codebase (prompts user if not provided)
+-t, --task            Task for codebase exploration (prompts user if omitted)
 -o, --output          Write final output to specified file
 path                  Path to explore (default: current directory)
 ```
 
 ## Example use cases
 
-- **Code Understanding**: Navigate large unfamiliar codebases quickly
-- **Documentation Generation**: Create documentation based on the codebase
-- **Bug Identification**: Ask the AI to find and explain bugs
-- **Refactoring Planning**: Get suggestions for code improvements
-- **Feature Implementation**: Have the AI guide you through adding new features
-- **Learning**: Use the AI to explain complex patterns or algorithms in the code
+- **Code Understanding**: Navigate large, unfamiliar codebases efficiently
+- **Documentation Generation**: Create comprehensive documentation from code analysis
+- **Bug Identification**: Identify and explain bugs through AI analysis
+- **Refactoring Planning**: Receive targeted suggestions for code improvements
+- **Feature Implementation**: Get guided assistance for adding new features
+- **Learning**: Understand complex patterns and algorithms through AI explanation
 
 ## How it works
 
-`codeexplorer` implements a simple agent that allows language models to explore a codebase using tools. The AI can navigate through files, read content, and understand the codebase incrementally, just like a human developer. Frankly this code is really simple, because the models are so smart!
+`codeexplorer` implements a simple agent that equips language models with tools for codebase exploration. AI models navigate files, read content, and understand code structure incrementally, mirroring human developer workflows. The implementation remains minimal because modern language models handle complex reasoning independently.
 
-When edits are allowed (with the `--allow-edits` flag), the AI can make changes to files or create new ones, but only if the working directory is under git version control and clean before the model starts to edit.
+When you enable edits with the `--allow-edits` flag, the AI can modify existing files or create new ones. However, the system requires a clean git working directory before allowing any modifications, ensuring all changes remain tracked and reversible.
 
 ## Contributing
 
