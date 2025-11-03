@@ -26,14 +26,6 @@ class OllamaAdapter:
         return messages
 
     def chat(self, messages, tools):
-        # message = ollama_client.chat(
-        #     model=chat_model,
-        #     messages=messages,
-        #     tools=openai_tools,
-        #     options=ollama.Options(
-        #         num_ctx=16384,
-        #     ),
-        # )
         chat_response = self.ollama_client.chat(
             model=self.model,
             options=ollama.Options(
@@ -134,7 +126,7 @@ class AnthropicAdapter:
                             print(event.text, end="", flush=True)
                         elif event.type == "content_block_stop":
                             print(
-                                "\ncontent block finished accumulating:",
+                                "\n content block finished accumulating:",
                                 event.content_block,
                             )
 
@@ -248,7 +240,7 @@ class WatsonxAdapter:
     def __init__(self, model: str):
         self.model = model if model else "meta-llama/llama-3-3-70b-instruct"
         if v := os.environ.get("WATSONX_IAM_API_KEY"):
-            wxapikey = v
+            wx_apikey = v
         else:
             logger.error("WATSONX_IAM_API_KEY")
             raise ValueError("WATSONX_IAM_API_KEY")
@@ -260,14 +252,14 @@ class WatsonxAdapter:
             raise ValueError("WATSONX_PROJECT")
 
         if v := os.environ.get("WATSONX_URL"):
-            wxendpoint = v
+            wx_endpoint = v
         else:
             logger.error("WATSONX_URL")
             raise ValueError("WATSONX_URL")
 
         credentials = wai.Credentials(
-            url=wxendpoint,
-            api_key=wxapikey,
+            url=wx_endpoint,
+            api_key=wx_apikey,
         )
         self.wxmodel = waifm.ModelInference(
             model_id=self.model,

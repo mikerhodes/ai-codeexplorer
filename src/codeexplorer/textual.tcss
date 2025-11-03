@@ -1,7 +1,7 @@
 Screen {
     layout: grid;
     grid-size: 2;
-    grid-rows: 90% 10%;
+    grid-rows: 90% 20%;
 	grid-columns: 90% 10%;
 }
 
@@ -9,14 +9,9 @@ Screen {
 	column-span: 2;
 }
 
-.box {
-    height: 100%;
-    border: solid green;
-}
-
-#chatbox {
-    height: 7;
-    width: 100%;
+#chat-input {
+	dock: bottom;
+    height: 20%;
 }
 
 .prompt {
